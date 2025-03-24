@@ -45,9 +45,16 @@ class RegistrationController @Inject()(
     implicit request => {
       request.body.asJson match {
         case Some(jsBody) =>
-          Try((jsBody \ "nino").convertTo[String]) match {
-            case Success(nino) =>
-              registerConnector.registerWithIdIndividual(nino, request.externalId, mandatoryPODSData()) map handleResponse
+          Try{
+            val nino = (jsBody \ "nino").convertTo[String]
+            val firstName = (jsBody \ "firstName").convertTo[String]
+            val lastName = (jsBody \ "lastName").convertTo[String]
+            (nino, firstName, lastName)
+          } match {
+            case Success(details) => {
+              registerConnector.registerWithIdIndividual(details._1, request.externalId, mandatoryPODSDataIndividual(details._2, details._3)) map
+                handleResponse
+            }
             case Failure(e) =>
               logger.warn(s"Bad Request returned from frontend for Register With Id Individual $e")
               Future.failed(new BadRequestException(s"Bad Request returned from frontend for Register With Id Individual $e"))
@@ -89,6 +96,14 @@ class RegistrationController @Inject()(
 
   private def mandatoryPODSData(requiresNameMatch: Boolean = false): JsValue = {
     Json.obj("regime" -> "PODA", "requiresNameMatch" -> requiresNameMatch, "isAnAgent" -> false)
+  }
+
+  private def mandatoryPODSDataIndividual(
+                                          firstName: String,
+                                          lastName: String
+                                         ): JsValue = {
+    val detailsJson = Json.obj("individual" -> Json.obj("firstName" -> firstName, "lastName" -> lastName))
+    Json.obj("regime" -> "PODA", "requiresNameMatch" -> true, "isAnAgent" -> false) ++ detailsJson
   }
 
   def registrationNoIdOrganisation: Action[OrganisationRegistrant] = authAction.async(parse.json[OrganisationRegistrant]) {

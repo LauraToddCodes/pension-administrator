@@ -76,14 +76,15 @@ class RegistrationControllerSpec extends SpecBase with MockitoSugar with BeforeA
 
   "registerWithIdIndividual " must {
 
-    val mandatoryRequestData = Json.obj("regime" -> "PODA", "requiresNameMatch" -> false, "isAnAgent" -> false)
-    val requestBody = Json.obj("nino" -> nino)
+    val requestBody = Json.obj("nino" -> nino, "firstName" -> "Stephen", "lastName" -> "Wood")
+    val mandatoryRequestData = Json.obj("regime" -> "PODA", "requiresNameMatch" -> true, "isAnAgent" -> false) ++
+      Json.obj("individual" -> Json.obj("firstName" -> "Stephen", "lastName" -> "Wood"))
 
     "return OK when the registration with id is successful for Individual" in {
 
       val jsResponse = readJsonFromFile("/data/validRegisterWithIdIndividualResponse.json")
 
-      when(mockRegistrationConnector.registerWithIdIndividual(eqTo(nino), any(), eqTo(mandatoryRequestData))
+      when(mockRegistrationConnector.registerWithIdIndividual(any(), any(), any())
       (any(), any(), any()))
         .thenReturn(Future.successful(Right(jsResponse)))
 
@@ -136,7 +137,7 @@ class RegistrationControllerSpec extends SpecBase with MockitoSugar with BeforeA
 
       forAll(connectorFailureGen) { connectorFailure =>
 
-        when(mockRegistrationConnector.registerWithIdIndividual(eqTo(nino), any(), eqTo(mandatoryRequestData))(any(), any(), any()))
+        when(mockRegistrationConnector.registerWithIdIndividual(any(), any(), any())(any(), any(), any()))
           .thenReturn(Future.successful(Left(connectorFailure)))
 
         val result = registrationController(idRetrievals).registerWithIdIndividual(fakeRequest.withJsonBody(requestBody))
@@ -198,7 +199,7 @@ class RegistrationControllerSpec extends SpecBase with MockitoSugar with BeforeA
 
     "throw Exception when any other exception returned from connector" in {
 
-      when(mockRegistrationConnector.registerWithIdIndividual(eqTo(nino), any(), eqTo(mandatoryRequestData))(any(), any(), any()))
+      when(mockRegistrationConnector.registerWithIdIndividual(any(), any(), any())(any(), any(), any()))
         .thenReturn(Future.failed(new Exception("Generic Exception")))
 
       val result = registrationController(idRetrievals).registerWithIdIndividual(fakeRequest.withJsonBody(requestBody))
